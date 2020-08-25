@@ -18,19 +18,19 @@ The goal is to be a fast and simple installer for small, self-contained applicat
 
 ## TODO
 
-[x] Start Menu shortcut
-[x] Desktop shortcut
-[x] Hosting releases on GitHub
-[x] Semantic version support
-[ ] Hosting releases on CDN
-[ ] Portable app (self contained exe)
-[ ] Archive support for releases (multiple files for distribution instead of portable exe)
-[ ] NuGet package
-[ ] MacOSX support
-[ ] Linux support
-[ ] Code signing (Authenticode)
-[ ] Custom setup actions (install, uninstall, update etc)
-[ ] Automatic versioning script
-[ ] NuGet scripts
-[ ] Migration from ClickOnce
-[ ] Migration from Squirrel
+- [x] Start Menu shortcut
+- [x] Desktop shortcut
+- [x] Hosting releases on GitHub
+- [x] Semantic version support
+- [ ] Hosting releases on CDN
+- [ ] Portable app (self contained exe)
+- [ ] Archive support for releases (multiple files for distribution instead of portable exe)
+- [ ] NuGet package
+- [ ] MacOSX support
+- [ ] Linux support
+- [ ] Code signing (Authenticode)
+- [ ] Custom setup actions (install, uninstall, update etc)
+- [ ] Automatic versioning script
+- [ ] NuGet scripts
+- [ ] Migration from ClickOnce
+- [ ] Migration from Squirrel
