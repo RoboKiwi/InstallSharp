@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30317.65
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InstallSharp", "src\InstallSharp\InstallSharp.csproj", "{52C87542-F86A-4908-BA99-B9CFD6C220BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstallSharp.Tests", "tests\InstallSharp.Tests\InstallSharp.Tests.csproj", "{CAF22921-5FA0-475B-8936-32C68E254C6E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{52C87542-F86A-4908-BA99-B9CFD6C220BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52C87542-F86A-4908-BA99-B9CFD6C220BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52C87542-F86A-4908-BA99-B9CFD6C220BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52C87542-F86A-4908-BA99-B9CFD6C220BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAF22921-5FA0-475B-8936-32C68E254C6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAF22921-5FA0-475B-8936-32C68E254C6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAF22921-5FA0-475B-8936-32C68E254C6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAF22921-5FA0-475B-8936-32C68E254C6E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {18E17C13-F3E3-4A4D-B90F-31F86BC27D02}
+	EndGlobalSection
+EndGlobal
