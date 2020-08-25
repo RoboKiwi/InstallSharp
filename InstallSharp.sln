@@ -5,7 +5,12 @@ VisualStudioVersion = 16.0.30317.65
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InstallSharp", "src\InstallSharp\InstallSharp.csproj", "{52C87542-F86A-4908-BA99-B9CFD6C220BD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstallSharp.Tests", "tests\InstallSharp.Tests\InstallSharp.Tests.csproj", "{CAF22921-5FA0-475B-8936-32C68E254C6E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InstallSharp.Tests", "tests\InstallSharp.Tests\InstallSharp.Tests.csproj", "{CAF22921-5FA0-475B-8936-32C68E254C6E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7AC65AAA-3684-4DDD-A6F0-93BB7EB42A31}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
