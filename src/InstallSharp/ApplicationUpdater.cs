@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -23,11 +22,10 @@ namespace InstallSharp
         /// <summary>
         /// The default filename suffix for downloaded self-updating exes.
         /// </summary>
-        public const string DefaultUpdateSuffix = ".update.exe";
         
         static readonly HttpClient client;
 
-        internal readonly ApplicationUpdaterArgs Args;
+        internal readonly ApplicationUpdaterConfig config;
         readonly CancellationToken cancellationToken;
 
         static ApplicationUpdater()
@@ -41,52 +39,33 @@ namespace InstallSharp
         }
 
         /// <summary>
-        /// Creates a new instance of <see cref="ApplicationUpdater"/>, using the specified <see cref="updateUri"/> and inferring
-        /// all other defaults for <see cref="ApplicationUpdaterArgs"/> from the running executable.
+        /// Creates a new instance of <see cref="ApplicationUpdater"/>, inferring all defaults from
+        /// the running executable, including the updater URL e.g. if the application is called MyApplication.exe,
+        /// and the Company is MyCompany, InstallSharp will check github.com/MyCompany/MyApplication for releases.
         /// </summary>
-        /// <param name="updateUri">The URL for <see cref="ApplicationUpdaterArgs.UpdateUrl"/>.</param>
-        /// <param name="cancellationToken"></param>
-        public ApplicationUpdater(string updateUri, CancellationToken cancellationToken = default) : this(new ApplicationUpdaterArgs(updateUri), cancellationToken)
+        public ApplicationUpdater() : this((ApplicationUpdaterConfig) null)
         {
         }
 
-        public ApplicationUpdater(ApplicationUpdaterArgs args, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Creates a new instance of <see cref="ApplicationUpdater"/>, using the specified <see cref="updateUri"/> and inferring
+        /// all other defaults for <see cref="ApplicationUpdaterConfig"/> from the running executable.
+        /// </summary>
+        /// <param name="updateUri">The URL for <see cref="ApplicationUpdaterConfig.UpdateUrl"/>.</param>
+        /// <param name="cancellationToken"></param>
+        public ApplicationUpdater(string updateUri, CancellationToken cancellationToken = default) : this(new ApplicationUpdaterConfig(updateUri), cancellationToken)
         {
-            this.Args = args;
+        }
+
+        public ApplicationUpdater(ApplicationUpdaterConfig config, CancellationToken cancellationToken = default)
+        {
             this.cancellationToken = cancellationToken;
-            
-            var module = Process.GetCurrentProcess().MainModule;
-            if (module == null) throw new NotSupportedException("Can't infer application updater args as the main module for the current process can't be found");
-            var assembly = Assembly.GetEntryAssembly();
-            
-            var info = module.FileVersionInfo;
-
-            // Infer any arguments from the running executable
-            args.FullFileName = info.FileName;
-            args.FileName ??= Path.GetFileName(args.FullFileName);
-            args.Name ??= Path.GetFileNameWithoutExtension(args.FileName);
-
-            args.Version = info.FileVersion;
-            args.AssetName ??= args.FileName;
-            args.CompanyName ??= info.CompanyName;
-            args.ProductName ??= info.ProductName;
-            args.Progress ??= new Progress<ProgressModel>();
-
-            if (args.Name == null) throw new ArgumentNullException(nameof(args.Name), "Short filename is null");
-            args.InstallPath ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", args.Name);
-
-            // Try get the program GUID to help uniquely identify it even across renames
-            if (args.Guid != Guid.Empty) return;
-            if (assembly == null) throw new NotSupportedException("Couldn't get the entry assembly to determine program guid");
-            var guidAttribute = assembly.GetCustomAttribute<GuidAttribute>();
-            if (guidAttribute == null) return;
-            if(!Guid.TryParse(guidAttribute.Value, out var guid)) throw new FormatException($"Couldn't parse GUID from assembly attribute: '{guidAttribute.Value}'");
-            args.Guid = guid;
+            this.config = ApplicationUpdaterConfigFactory.Create(config);
         }
 
         public Task UninstallAsync(UninstallArgs args = null)
         {
-            var productName = args?.ProductName ?? Args.ProductName;
+            var productName = args?.ProductName ?? config.ProductName;
 
             // Remove the Add / Remove Programs information
             Registry.CurrentUser.DeleteSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\" + GetUninstallKeyName(), false);
@@ -103,7 +82,7 @@ namespace InstallSharp
 
             if (args == null || !args.Silent)
             {
-                Args.Progress.Report(new ProgressModel(ProgressState.Done, "Uninstalled successfully", -1));
+                config.Progress.Report(new ProgressModel(ProgressState.Done, "Uninstalled successfully", -1));
             }
 
             return Task.CompletedTask;
@@ -111,23 +90,23 @@ namespace InstallSharp
 
         public string GetUninstallKeyName()
         {
-            var value = Args.Guid == Guid.Empty ? Args.Name : Args.Guid.ToString();
+            var value = config.Guid == Guid.Empty ? config.Name : config.Guid.ToString();
             if( string.IsNullOrWhiteSpace(value)) throw new InvalidOperationException("The detected uninstall key name is null or empty");
             return value;
         }
 
         public async Task InstallAsync(InstallArgs args = null)
         {
-            var name = args?.Name ?? Args.Name;
-            var company = args?.Company ?? Args.CompanyName;
-            var path = Environment.ExpandEnvironmentVariables( args?.Path ?? Args.InstallPath );
-            var filename = Path.Combine(path, Args.FileName);
-            var productName = args?.ProductName ?? Args.ProductName;
+            var name = args?.Name ?? config.Name;
+            var company = args?.Company ?? config.CompanyName;
+            var path = Environment.ExpandEnvironmentVariables( args?.Path ?? config.InstallPath );
+            var filename = Path.Combine(path, config.FileName);
+            var productName = args?.ProductName ?? config.ProductName;
             
             // Copy the file to the destination if it doesn't already exist
             var fileInfo = new FileInfo(filename);
             if (fileInfo.Directory != null && !fileInfo.Directory.Exists) fileInfo.Directory.Create();
-            File.Copy(Args.FullFileName, fileInfo.FullName, true);
+            File.Copy(config.FullFileName, fileInfo.FullName, true);
 
             // https://docs.microsoft.com/en-nz/windows/win32/msi/uninstall-registry-key
             var keyName = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\" + GetUninstallKeyName();
@@ -137,8 +116,8 @@ namespace InstallSharp
 
                 var stringsToWrite = new[] {
                     new { Key = "DisplayIcon", Value = $"{filename},0" },
-                    new { Key = "DisplayName", Value = args?.ProductName ?? Args.ProductName },
-                    new { Key = "DisplayVersion", Value = Args.Version },
+                    new { Key = "DisplayName", Value = args?.ProductName ?? config.ProductName },
+                    new { Key = "DisplayVersion", Value = config.Version },
                     new { Key = "InstallDate", Value = DateTime.Now.ToString("yyyyMMdd") },
                     new { Key = "InstallLocation", Value = path },
                     new { Key = "Publisher", Value = company },
@@ -168,12 +147,12 @@ namespace InstallSharp
             // Start Menu shortcut
             var programsFolder = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs)));
             var shortcutPath = new FileInfo(Path.Combine(programsFolder.FullName, productName + ".lnk"));
-            CreateShortcut(shortcutPath.FullName, fileVersionInfo.FileName);
+            CreateShortcut(shortcutPath.FullName, config.FullFileName);
             
             // Desktop shortcut
             var desktopFolder = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)));
             var desktopShortcut = new FileInfo(Path.Combine(desktopFolder.FullName, productName + ".lnk"));
-            CreateShortcut(desktopShortcut.FullName, fileVersionInfo.FileName);
+            CreateShortcut(desktopShortcut.FullName, config.FullFileName);
         }
 
         void CreateShortcut(string path, string target)
@@ -206,7 +185,7 @@ namespace InstallSharp
             }
             else
             {
-                commandLine.Append(fileVersionInfo.FileName);
+                commandLine.Append(config.FullFileName);
             }
 
             if (args?.Args != null)
@@ -223,6 +202,8 @@ namespace InstallSharp
             processSecurity.nLength = Marshal.SizeOf(processSecurity);
             threadSecurity.nLength = Marshal.SizeOf(threadSecurity);
 
+            // TODO: Add support for *nix
+
             if (ProcessManager.CreateProcess(null, commandLine, processSecurity, threadSecurity, false, normalPriorityClass, IntPtr.Zero, null, startupInfo, processInformation))
             {
                 // Process was created successfully
@@ -233,18 +214,28 @@ namespace InstallSharp
             throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
         }
 
-        public async Task UpdateAsync(UpdateCheckArgs args)
+        /// <summary>
+        /// Downloads and launches any available update, otherwise returns <c>false</c>. You should exit immediately
+        /// if <c>true</c> is returned, as the update process will be waiting for processes to exit and release locks.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public async Task<bool> UpdateAsync(UpdateCheckArgs args = null)
         {
             // Check for available update
             var update = await CheckForUpdateAsync(args);
-            if (update != null)
+            if (update != null && update.IsUpgrade())
             {
                 // Download the update side by side
-                var file = await DownloadAsync(update, progress, cancellationToken);
+                var file = await DownloadAsync(update, config.Progress, cancellationToken);
 
                 // Launch the downloaded update
                 Launch(new LaunchArgs(file.Filename));
+
+                return true;
             }
+
+            return false;
         }
 
         public async Task<TempFile> DownloadAsync(UpdateInfo info, IProgress<ProgressModel> progress, CancellationToken cancellationToken = default)
@@ -262,7 +253,7 @@ namespace InstallSharp
                 double bytesDownloaded = 0;
                 
                 // Download next to the executing .exe but with the extension .update.exe
-                var fileInfo = new FileInfo( Path.ChangeExtension(fileVersionInfo.FileName, updateSuffix));
+                var fileInfo = new FileInfo( Path.ChangeExtension(config.FullFileName, config.UpdateSuffix));
                 using (var stream = await response.Content.ReadAsStreamAsync())
                 using (var file = File.Open(fileInfo.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
                 {
@@ -305,13 +296,13 @@ namespace InstallSharp
 
         public async Task<UpdateInfo> CheckForUpdateAsync(UpdateCheckArgs args = null)
         {
-            var assetName = args?.AssetName ?? Path.GetFileName(fileVersionInfo.FileName);
+            var assetName = args?.AssetName ?? config.AssetName;
             var allowPreRelease = args != null && args.AllowPreRelease;
             var ignoreTags = args?.IgnoreTags ?? new string[] { };
-            var uri = args?.Uri ?? defaultUri;
+            var uri = args?.Uri ?? config.UpdateUrl;
             
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
-            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(assetName, fileVersionInfo.FileVersion));
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(assetName, config.Version));
 
             // Get the latest releases from GitHub
             using (var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
@@ -342,7 +333,7 @@ namespace InstallSharp
                     Uri = asset.browser_download_url.ToString(),
                     IsPreRelease = latest.prerelease,
                     Name = asset.name,
-                    CurrentVersion = new SemanticVersion(fileVersionInfo.ProductVersion)
+                    CurrentVersion = new SemanticVersion(config.Version)
                 };
 
                 return info;
@@ -373,16 +364,16 @@ namespace InstallSharp
 
         public async Task ApplyUpdateAsync(ApplyUpdateArgs args)
         {
-            var source = fileVersionInfo.FileName;
+            var source = config.FullFileName;
             var destination = args.Target;
 
             // If no destination was specified, default to overwrite current path, trimmming ".update.exe" to ".exe"
             if (string.IsNullOrWhiteSpace(destination))
             {
-                destination = fileVersionInfo.FileName;
-                if (destination.EndsWith(updateSuffix))
+                destination = source;
+                if (destination.EndsWith(config.UpdateSuffix))
                 {
-                    destination = destination.Substring(0, destination.Length - updateSuffix.Length) + ".exe";
+                    destination = destination.Substring(0, destination.Length - config.UpdateSuffix.Length) + ".exe";
                 }
             }
 
@@ -398,7 +389,7 @@ namespace InstallSharp
                 Launch(new LaunchArgs { Target = destination });
             }
         }
-
+        
         class GitHubRelease
         {
             public string name { get; set; }
@@ -433,5 +424,153 @@ namespace InstallSharp
             WaitForOtherProcesses();
             File.Delete(args.Target);
         }
+        
+        public async Task<bool> ExecuteAsync()
+        {
+            // Use the application updater configuration and the command line to figure
+            // out what we're going to be doing
+            var commandline = CommandLineArgumentsFactory.Parse(config);
+
+            // We didn't find any valid InstallSharp command, so return early
+            if (commandline.Command == Command.None) return false;
+
+            switch (commandline.Command)
+            {
+                case Command.Install:
+                    break;
+
+                case Command.Update:
+                    throw new NotImplementedException();
+                
+                case Command.ApplyUpdate:
+                    
+                    var args = new ApplyUpdateArgs
+                    {
+                        Elevate = commandline.Elevate,
+                        Launch = commandline.Launch,
+                        Target = commandline.Target
+                    };
+
+                    await ApplyUpdateAsync(args).ConfigureAwait(false);
+                    break;
+
+                case Command.Uninstall:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            return true;
+        }
+
+        public UpdateContext GetUpdateContext()
+        {
+            var updateContext = new UpdateContext();
+
+            var directoryName = Path.GetDirectoryName(config.FullFileName);
+            if (directoryName == null) throw new InvalidOperationException("Couldn't get directory name that the app is running from");
+            var directory = new DirectoryInfo(directoryName);
+
+            // If the application is executing from the TEMP folder, then it's probably been executed from a .zip that has been
+            // opened and temporarily extracted by Windows Explorer or 7-zip etc
+            var isTempFolder = directoryName.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase);
+
+            var filename = this.config.FileName;
+            
+            // Check for in-place update of exe (.update.exe)
+            var extensionless = Path.GetFileNameWithoutExtension(filename);
+            if (extensionless.EndsWith(config.UpdateSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                updateContext.IsUpdate = true;
+                updateContext.PackageType = PackageType.Executable;
+                updateContext.UpdateSource = new FileInfo(config.FullFileName);
+                var destinationName = extensionless.Substring(0, extensionless.Length - config.UpdateSuffix.Length);
+                updateContext.UpdateDestination = new FileInfo( Path.Combine(Path.GetDirectoryName(config.FullFileName), destinationName + ".exe" ) );
+                return updateContext;
+            }
+
+            // Check for archive update (update parent folder from extracted sub folder containing updates)
+            if (Path.GetExtension(directoryName).Equals(config.UpdateSuffix))
+            {
+                updateContext.IsUpdate = true;
+                updateContext.PackageType = PackageType.Archive;
+                updateContext.UpdateSource = directory;
+                updateContext.UpdateDestination = directory.Parent;
+
+                return updateContext;
+            }
+
+            // Check if the app is executing from the TEMP folder, in which case it's been extracted
+            // and executed from a zip file
+            if (isTempFolder)
+            {
+                updateContext.IsUpdate = false;
+                updateContext.IsInstalled = false;
+                updateContext.PackageType = PackageType.Archive;
+                updateContext.UpdateSource = directory;
+                updateContext.UpdateDestination = new FileInfo(config.InstallPath);
+                return updateContext;
+            }
+            
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Contains information on where the application is executing or updating from.
+    /// </summary>
+    public class UpdateContext
+    {
+        public PackageType PackageType { get; set; }
+
+        /// <summary>
+        /// <c>true</c> if the application is currently running as an update
+        /// </summary>
+        public bool IsUpdate { get; set; }
+
+        public FileSystemInfo UpdateSource { get; set; }
+
+        public FileSystemInfo UpdateDestination { get; set; }
+        public bool IsInstalled { get; set; }
+    }
+
+    public enum DeploymentDestination
+    {
+        None = 0,
+
+        /// <summary>
+        /// The application will get deployed where the user first placed and ran the exe
+        /// </summary>
+        InPlace = 1,
+
+        /// <summary>
+        /// The application will install to LocalAppData\Programs
+        /// </summary>
+        UserPrograms = 2,
+
+        /// <summary>
+        /// The application will install to ProgramData\Programs
+        /// </summary>
+        MachinePrograms = 3
+    }
+
+    public enum DeploymentSource
+    {
+        None = 0,
+
+        /// <summary>
+        /// Releases are on GitHub
+        /// </summary>
+        GitHub = 1,
+
+    }
+
+    public enum PackageType
+    {
+        None = 0,
+        Executable = 1,
+        Archive = 2,
+        Msi = 3,
+        Msix
     }
 }

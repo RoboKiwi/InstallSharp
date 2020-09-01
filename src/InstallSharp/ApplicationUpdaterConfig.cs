@@ -9,18 +9,22 @@ namespace InstallSharp
     /// while the other values can be implied from your application exe. You should configure a Guid for your executable
     /// to make the installer more robust; see <see cref="Guid"/>.
     /// </summary>
-    public class ApplicationUpdaterArgs
+    public class ApplicationUpdaterConfig
     {
-        /// <summary>
-        /// Creates a new instance of <see cref="ApplicationUpdaterArgs"/> with defaults.
-        /// </summary>
-        public ApplicationUpdaterArgs() { }
+        internal const string DefaultUpdateSuffix = ".update";
+
+        internal const string DefaultSetupArg = "setup";
 
         /// <summary>
-        /// Creates a new instance of <see cref="ApplicationUpdaterArgs"/> with a specified <see cref="UpdateUrl"/>.
+        /// Creates a new instance of <see cref="ApplicationUpdaterConfig"/> with defaults.
+        /// </summary>
+        public ApplicationUpdaterConfig() { }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="ApplicationUpdaterConfig"/> with a specified <see cref="UpdateUrl"/>.
         /// </summary>
         /// <param name="updateUri"></param>
-        public ApplicationUpdaterArgs(string updateUri)
+        public ApplicationUpdaterConfig(string updateUri)
         {
             UpdateUrl = updateUri;
         }
@@ -93,5 +97,20 @@ namespace InstallSharp
         /// The current version, defaulting to <see cref="FileVersionInfo.FileVersion"/>.
         /// </summary>
         public string Version { get; set; }
+
+        /// <summary>
+        /// The command line argument to look for, which specifies setup command(s). If not specified, defaults to <c>"setup"</c>.
+        /// </summary>
+        public string CommandLineArgument { get; set; }
+
+        /// <summary>
+        /// The full command line parsed to the application, before being parsed.
+        /// </summary>
+        public string CommandLine { get; set; }
+
+        /// <summary>
+        /// The file extension for downloaded updates, defaulting to <see cref="ApplicationUpdaterConfig.DefaultUpdateSuffix"/>.
+        /// </summary>
+        public string UpdateSuffix { get; set; }
     }
 }

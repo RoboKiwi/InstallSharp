@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\InstallSharp\InstallSharp.csproj" />
+    <ProjectReference Include="..\InstallSharp.Tests.IntegrationTest\InstallSharp.Tests.IntegrationTest.csproj" />
   </ItemGroup>
 
 </Project>
