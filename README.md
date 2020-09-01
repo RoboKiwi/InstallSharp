@@ -159,3 +159,40 @@ When a zip file update is downloaded, the zip is downloaded and extracted next t
 ### MSI / MSIX
 
 When a installation package update is downloaded, the installer will be invoked as normal, and the installer is responsible for re-launching the application as necessary. InstallSharp is only responsible for launching the installer.
+
+## Installation Context
+
+When the executable runs, InstallSharp will check the directory, parent directory, user environment and registry to determine whether the application is "installed", registered in Add/Remove Programs, has shortcuts, and is running as an update.
+
+| Scenario | Example Location | IsUpdate | IsDeployed | Package Type | Update / Install Target |
+|----------|----------|----------|-------------|--------------|-------------------------|
+| 1 | C:\Users\David\Downloads\MyApp.exe | `false` | `false` | exe | |
+| 2 | C:\Users\David\Downloads\MyApp.update.exe | `true` | `false` | exe | C:\Users\David\Downloads\MyApp.exe |
+| 3 | C:\Users\David\Downloads\MyApp\MyApp.exe | `false` | `true` | archive | |
+| 4 | C:\Users\David\Downloads\MyApp\\.update\MyApp.exe | `true` | `true` | archive | C:\Users\David\Downloads\MyApp |
+| 5 | C:\Users\David\AppData\Local\Temp\MyApp.exe | `false` | `false` | exe | C:\Users\David\AppData\Local\Programs\MyApp\MyApp.exe |
+| 6 | C:\Users\David\AppData\Local\Temp\ZipTmp\MyApp.exe | `false` | `false` | archive | C:\Users\David\AppData\Local\Programs\MyApp\MyApp.exe |
+
+### Scenario 1
+
+The application is self-contained and has been downloaded and run. It's not considered "deployed", but it can still be self-updated (Scenario 2), and even registered and shortcutted.
+
+### Scenario 2
+
+This is the update scenario for Scenario 1
+
+### Scenario 3
+
+The application was an archive deploy, and apparently simply downloaded and extracted in place in the Downloads folder. This is loosely considered "deployed" in that it is isolated somewhat in its own folder, even if it exists under Downloads.
+
+### Scenario 4
+
+This is the update scenario for Scenario 3
+
+### Scenario 5
+
+The application is self-contained and executing from the %TEMP% folder. It can't be considered deployed, and really needs to be "deployed" somewhere. Deployment in this scenario would default to %LocalAppData%\Programs unless the user specified somewhere else (or copied the .exe manually).
+
+### Scenario 6
+
+The application is an archive package, and would have been "opened" and temporarily extracted to the %TEMP% folder by an archive program such as the default Windows Explorer zip support, or something like 7-zip. The app is not considered deployed.
