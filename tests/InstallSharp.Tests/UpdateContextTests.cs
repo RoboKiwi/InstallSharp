@@ -93,10 +93,29 @@ namespace InstallSharp.Tests
             var context = updater.GetUpdateContext();
 
             Assert.False(context.IsUpdate);
-            Assert.False(context.IsInstalled);
+            Assert.False(context.IsDeployed);
             Assert.Equal(PackageType.Archive, context.PackageType);
             Assert.Equal( Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Programs\MyApp"), context.UpdateDestination.FullName);
             Assert.Equal(Environment.ExpandEnvironmentVariables(@"%TEMP%\TempZip"), context.UpdateSource.FullName);
+        }
+
+        [Fact]
+        public void DetectDownloadsFolder()
+        {
+            var config = new ApplicationUpdaterConfig
+            {
+                FullFileName = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Downloads\MyApp.exe")
+            };
+
+            var updater = new ApplicationUpdater(config);
+
+            var context = updater.GetUpdateContext();
+
+            Assert.False(context.IsUpdate);
+            Assert.False(context.IsDeployed);
+            Assert.Equal(PackageType.Executable, context.PackageType);
+            Assert.Equal(Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Programs\MyApp"), context.UpdateDestination.FullName);
+            Assert.Equal(Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Downloads\MyApp.exe"), context.UpdateSource.FullName);
         }
     }
 }

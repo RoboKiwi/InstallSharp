@@ -475,12 +475,21 @@ namespace InstallSharp
             // opened and temporarily extracted by Windows Explorer or 7-zip etc
             var isTempFolder = directoryName.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase);
 
+            // If the application is executing from the special Downloads folder, we can't really count it as "installed"
+            // and it should probably be copied somewhere to be considered as installed and allowed to have shortcuts etc
+            var downloadsFolder = Win32Api.GetKnownFolderPath(Win32Api.KnownFolders.Downloads, Win32Api.SpecialFolderOption.DoNotVerify);
+            var isDownloadFolder = directoryName.StartsWith(downloadsFolder, StringComparison.OrdinalIgnoreCase);
+
             var filename = this.config.FileName;
-            
+
+            // We won't count as "installed" if we're running from temp or downloads
+            updateContext.IsDeployed = !isTempFolder && !isDownloadFolder;
+
             // Check for in-place update of exe (.update.exe)
             var extensionless = Path.GetFileNameWithoutExtension(filename);
             if (extensionless.EndsWith(config.UpdateSuffix, StringComparison.OrdinalIgnoreCase))
             {
+                
                 updateContext.IsUpdate = true;
                 updateContext.PackageType = PackageType.Executable;
                 updateContext.UpdateSource = new FileInfo(config.FullFileName);
@@ -505,13 +514,35 @@ namespace InstallSharp
             if (isTempFolder)
             {
                 updateContext.IsUpdate = false;
-                updateContext.IsInstalled = false;
+                updateContext.IsDeployed = false;
                 updateContext.PackageType = PackageType.Archive;
                 updateContext.UpdateSource = directory;
                 updateContext.UpdateDestination = new FileInfo(config.InstallPath);
                 return updateContext;
             }
-            
+
+            // Are we running from the Downloads folder?
+            if (isDownloadFolder)
+            {
+                // If we're in a sub directory under Downloads then we can consider this an archive package (one or more files, in own folder)
+                if (directory.Parent != null && directory.Parent.FullName.Equals(downloadsFolder, StringComparison.OrdinalIgnoreCase))
+                {
+                    updateContext.IsUpdate = true;
+                    updateContext.PackageType = PackageType.Archive;
+                    updateContext.UpdateSource = directory;
+                    updateContext.UpdateDestination = directory.Parent;
+                }
+                else
+                {
+                    updateContext.IsUpdate = false;
+                    updateContext.PackageType = PackageType.Executable;
+                    updateContext.UpdateSource = new FileInfo(config.FullFileName);
+                    updateContext.UpdateDestination = new FileInfo(config.InstallPath);
+                }
+
+                return updateContext;
+            }
+
             return null;
         }
     }
@@ -531,7 +562,8 @@ namespace InstallSharp
         public FileSystemInfo UpdateSource { get; set; }
 
         public FileSystemInfo UpdateDestination { get; set; }
-        public bool IsInstalled { get; set; }
+
+        public bool IsDeployed { get; set; }
     }
 
     public enum DeploymentDestination
