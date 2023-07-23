@@ -120,7 +120,7 @@ Setup operations are invoked by calling the application with a `setup` argument 
 
 If you choose to rename your application, if you have been using a guid then you won't have to do anything.
 
-This is why you're encouraged to specify an installation guid either their the main application's `[assembly: Guid("guid here")]` or by specifying the guid in the arguments to `[assembly: InstallSharpAttribute]` or when creating your `ApplicationUpdater` object.
+This is why you're encouraged to specify an installation guid either in the main application's `[assembly: Guid("guid here")]` or by specifying the guid in the arguments to `[assembly: InstallSharpAttribute]` or when creating your `ApplicationUpdater` object.
 
 ## Advanced
 
@@ -158,7 +158,7 @@ When a zip file update is downloaded, the zip is downloaded and extracted next t
 
 ### MSI / MSIX
 
-When a installation package update is downloaded, the installer will be invoked as normal, and the installer is responsible for re-launching the application as necessary. InstallSharp is only responsible for launching the installer.
+When an installation package update is downloaded, the installer will be invoked as normal, and the installer is responsible for re-launching the application as necessary. InstallSharp is only responsible for launching the installer.
 
 ## Installation Context
 
